@@ -48,13 +48,11 @@ class HttpCollector:
 			headers_301 = []
 		for i in xrange(len(acc_data)):
 			http_code = HttpCollector.__get_http_return_code(acc_data[i])
-			#print "Http Code : %s" % http_code ########################
 			if http_code == "200":
 				final_urls.append(acc_urls[i])
 				final_data.append(acc_data[i])
 			elif http_code == "301" or http_code == "302":
 				url = HttpCollector.__get_redirect_301_url(acc_data[i])
-				#print "Original Url : %s" % url ########################
 				urls_301.append(url)
 				if headers_301 != None:
 					headers_301.append(url_2_header[acc_urls[i]])
@@ -64,6 +62,7 @@ class HttpCollector:
 				pass
 
 		if len(urls_301) > 0:
+			print "URL Redirection Brgin ..."
 			(urls_301, data_301) = HttpCollector.__collect(urls_301, headers_301)
 			final_urls.extend(urls_301)
 			final_data.extend(data_301)
@@ -139,13 +138,13 @@ class HttpCollector:
 				if e.args[0] == 115:
 					epoll.register(sockets[i].fileno(), select.EPOLLOUT)
 				else:
-					print "[Connection Exception] Url %s : %s" % (urls[i], str(e))
+					print "[Connection Error] Url %s : %s" % (urls[i], str(e))
 		print "Time Consuming Of Non-Blocking Connection : " + str(time.time() - b)
 	
 		# listen connection result
 		b = time.time()
 		while True:
-			events = epoll.poll(2.0)
+			events = epoll.poll(5.0)
 			if len(events) == 0: break
 			for fd, event in events:
 				if event & select.EPOLLOUT:
@@ -156,7 +155,7 @@ class HttpCollector:
 						n_send = fd_2_sock[fd].send(req)
 						epoll.modify(fd, select.EPOLLIN)
 					else:
-						print "Connect %s Fail" % fd_2_url[fd].url
+						print "[Connection Error] Connect %s Fail, Errno : %d" % (fd_2_url[fd].url, err)
 						fd_2_sock[fd].close()
 				elif event & select.EPOLLIN:
 					# data is returned by server
@@ -185,6 +184,10 @@ class HttpCollector:
 		hosts = []
 		uris  = []
 		for url in urls:
+			i = url.find("?")
+			if i >= 0:
+				tmp_str = url[i:]
+				url = url.replace(tmp_str, "")
 			url = url.replace("http://", "")
 			pos = url.find("/")
 			if pos >= 0:
